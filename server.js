@@ -1,8 +1,18 @@
 require("dotenv").config();
+
+const validateEnv = require("./utils/validateEnv");
+validateEnv();
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const helmet = require("helmet");
+const compression = require("compression");
+const rateLimit = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
+
 const connectDB = require("./config/db");
+const logger = require("./utils/logger");
 
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
@@ -19,8 +29,37 @@ const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
-// Trust proxy - needed to get real client IP behind proxies/load balancers
 app.set("trust proxy", true);
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
+app.use(mongoSanitize());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: { message: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api", limiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    message: "Too many authentication attempts, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/auth", authLimiter);
+
+app.use(compression());
 
 app.use(
   cors({
@@ -28,8 +67,8 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10kb" })); // Limit body size
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 app.use((req, res, next) => {
   req.clientIp =
@@ -41,7 +80,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve uploaded files (tickets PDFs)
+app.use(logger.requestLogger);
+
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api/auth", authRoutes);
@@ -58,52 +98,6 @@ app.use("/api/orders", orderRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date() });
-});
-
-// Mock checkout page (for testing without real Paystack)
-app.get("/paystack-mock", (req, res) => {
-  res.send(`
-    <h1>Paystack Mock</h1>
-    <p>This is a mock Paystack page for testing purposes</p>
-    <button onclick="completePayment()">Pay Now</button>
-    <script>
-      function completePayment() {
-        window.location.href = 'http://localhost:5173/payment/verify?reference=mock-reference';
-      }
-    </script>
-  `);
-});
-app.get("/mock-checkout", (req, res) => {
-  const { ref, amount } = req.query;
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Mock Checkout</title>
-      <style>
-        body { font-family: Arial; max-width: 400px; margin: 50px auto; padding: 20px; }
-        .card { border: 1px solid #ddd; padding: 30px; border-radius: 8px; text-align: center; }
-        .amount { font-size: 32px; color: #0ea5e9; margin: 20px 0; }
-        button { background: #22c55e; color: white; border: none; padding: 15px 30px; border-radius: 6px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #16a34a; }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <h2>Mock Payment</h2>
-        <p>Reference: ${ref}</p>
-        <div class="amount">₦${(parseInt(amount) || 0).toLocaleString()}</div>
-        <p>This is a test checkout page</p>
-        <button onclick="completePayment()">Pay Now</button>
-      </div>
-      <script>
-        function completePayment() {
-          window.location.href = 'http://localhost:5173/payment/verify?reference=${ref}';
-        }
-      </script>
-    </body>
-    </html>
-  `);
 });
 
 // Global Error Handler
