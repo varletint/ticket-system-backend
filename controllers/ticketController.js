@@ -331,6 +331,7 @@ const verifyPayment = async (req, res) => {
       // Generate QR image
       const qrImage = await qrService.generateQRImage(qrToken);
 
+      /* Commented out pre-generation for Vercel compatibility
       // Generate PDF
       const pdfResult = await pdfService.generateTicketPDF({
         ticket,
@@ -341,6 +342,7 @@ const verifyPayment = async (req, res) => {
 
       // Update ticket with PDF URL
       ticket.pdfUrl = pdfResult.url;
+      */
       ticket.qrCode = qrToken; // Update with final token
       await ticket.save();
 
@@ -435,23 +437,21 @@ const downloadTicket = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // Regenerate PDF if needed
-    if (!ticket.pdfUrl) {
-      const qrImage = await qrService.generateQRImage(ticket.qrCode);
-      const pdfResult = await pdfService.generateTicketPDF({
-        ticket,
-        event: ticket.event,
-        user: ticket.user,
-        qrImageDataUrl: qrImage,
-      });
-      ticket.pdfUrl = pdfResult.url;
-      await ticket.save();
-    }
-
-    res.json({
-      pdfUrl: ticket.pdfUrl,
-      fileName: `ticket_${ticket._id}.pdf`,
+    // Generate PDF in-memory and stream directly
+    const qrImage = await qrService.generateQRImage(ticket.qrCode);
+    const pdfBuffer = await pdfService.generateTicketPDF({
+      ticket,
+      event: ticket.event,
+      user: ticket.user,
+      qrImageDataUrl: qrImage,
     });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=ticket_${ticket._id}.pdf`
+    );
+    res.send(pdfBuffer);
   } catch (error) {
     console.error("Download ticket error:", error);
     res.status(500).json({ message: "Error downloading ticket" });

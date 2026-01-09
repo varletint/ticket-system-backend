@@ -3,27 +3,21 @@ const fs = require("fs");
 const path = require("path");
 
 class PDFService {
-  constructor() {
-    this.uploadsDir = path.join(__dirname, "../uploads");
-    // Ensure uploads directory exists
-    if (!fs.existsSync(this.uploadsDir)) {
-      fs.mkdirSync(this.uploadsDir, { recursive: true });
-    }
-  }
-
   async generateTicketPDF({ ticket, event, user, qrImageDataUrl }) {
     return new Promise((resolve, reject) => {
       try {
-        const fileName = `ticket_${ticket._id}.pdf`;
-        const filePath = path.join(this.uploadsDir, fileName);
-
         const doc = new PDFDocument({
           size: [400, 600],
           margin: 30,
         });
 
-        const stream = fs.createWriteStream(filePath);
-        doc.pipe(stream);
+        // Collect data in chunks
+        let buffers = [];
+        doc.on("data", buffers.push.bind(buffers));
+        doc.on("end", () => {
+          let pdfBuffer = Buffer.concat(buffers);
+          resolve(pdfBuffer);
+        });
 
         // Header background
         doc.rect(0, 0, 400, 120).fill("#1a1a2e");
@@ -154,16 +148,6 @@ class PDFService {
           });
 
         doc.end();
-
-        stream.on("finish", () => {
-          resolve({
-            filePath,
-            fileName,
-            url: `/uploads/${fileName}`,
-          });
-        });
-
-        stream.on("error", reject);
       } catch (error) {
         reject(error);
       }
