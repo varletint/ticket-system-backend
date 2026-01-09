@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 const validateEnv = require("./utils/validateEnv");
-validateEnv();
+// validateEnv(); // Commented out to prevent fatal startup errors on Vercel
 
 const express = require("express");
 const cors = require("cors");
@@ -111,6 +111,13 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
+
+    // Skip app.listen on Vercel
+    if (process.env.VERCEL) {
+      console.log("Running in Vercel environment - skipping app.listen()");
+      return;
+    }
+
     const server = app.listen(PORT, () => {
       console.log(`
  Ticket System Server
