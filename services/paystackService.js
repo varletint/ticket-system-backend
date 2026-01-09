@@ -2,23 +2,23 @@ class PaystackService {
   constructor() {
     this.baseUrl = "https://api.paystack.co";
     this.secretKey = process.env.PAYSTACK_SECRET_KEY;
-    this.isMock = !this.secretKey || this.secretKey.includes("sk_test_1");
+    // this.isMock = !this.secretKey || this.secretKey.includes("sk_test_1");
   }
 
   async createSubaccount(organizer, bankDetails) {
-    if (this.isMock) {
-      return {
-        success: true,
-        data: {
-          subaccount_code: `ACCT_mock_${Date.now()}`,
-          business_name: bankDetails.businessName,
-          percentage_charge: bankDetails.percentageCharge || 90,
-          settlement_bank: bankDetails.bankCode,
-          account_number: bankDetails.accountNumber,
-          active: true,
-        },
-      };
-    }
+    // if (this.isMock) {
+    //   return {
+    //     success: true,
+    //     data: {
+    //       subaccount_code: `ACCT_mock_${Date.now()}`,
+    //       business_name: bankDetails.businessName,
+    //       percentage_charge: bankDetails.percentageCharge || 90,
+    //       settlement_bank: bankDetails.bankCode,
+    //       account_number: bankDetails.accountNumber,
+    //       active: true,
+    //     },
+    //   };
+    // }
 
     // Real Paystack API call
     const response = await fetch(`${this.baseUrl}/subaccount`, {
@@ -105,35 +105,35 @@ class PaystackService {
   }
 
   async getBanks() {
-    if (this.isMock) {
-      return {
-        success: true,
-        data: [
-          { code: "044", name: "Access Bank" },
-          { code: "023", name: "Citibank Nigeria" },
-          { code: "050", name: "Ecobank Nigeria" },
-          { code: "084", name: "Enterprise Bank" },
-          { code: "070", name: "Fidelity Bank" },
-          { code: "011", name: "First Bank of Nigeria" },
-          { code: "214", name: "First City Monument Bank" },
-          { code: "058", name: "Guaranty Trust Bank" },
-          { code: "030", name: "Heritage Bank" },
-          { code: "301", name: "Jaiz Bank" },
-          { code: "082", name: "Keystone Bank" },
-          { code: "014", name: "MainStreet Bank" },
-          { code: "076", name: "Polaris Bank" },
-          { code: "039", name: "Stanbic IBTC Bank" },
-          { code: "232", name: "Sterling Bank" },
-          { code: "032", name: "Union Bank of Nigeria" },
-          { code: "033", name: "United Bank For Africa" },
-          { code: "215", name: "Unity Bank" },
-          { code: "035", name: "Wema Bank" },
-          { code: "057", name: "Zenith Bank" },
-        ],
-      };
-    }
+    // if (this.isMock) {
+    //   return {
+    //     success: true,
+    //     data: [
+    //       { code: "044", name: "Access Bank" },
+    //       { code: "023", name: "Citibank Nigeria" },
+    //       { code: "050", name: "Ecobank Nigeria" },
+    //       { code: "084", name: "Enterprise Bank" },
+    //       { code: "070", name: "Fidelity Bank" },
+    //       { code: "011", name: "First Bank of Nigeria" },
+    //       { code: "214", name: "First City Monument Bank" },
+    //       { code: "058", name: "Guaranty Trust Bank" },
+    //       { code: "030", name: "Heritage Bank" },
+    //       { code: "301", name: "Jaiz Bank" },
+    //       { code: "082", name: "Keystone Bank" },
+    //       { code: "014", name: "MainStreet Bank" },
+    //       { code: "076", name: "Polaris Bank" },
+    //       { code: "039", name: "Stanbic IBTC Bank" },
+    //       { code: "232", name: "Sterling Bank" },
+    //       { code: "032", name: "Union Bank of Nigeria" },
+    //       { code: "033", name: "United Bank For Africa" },
+    //       { code: "215", name: "Unity Bank" },
+    //       { code: "035", name: "Wema Bank" },
+    //       { code: "057", name: "Zenith Bank" },
+    //     ],
+    //   };
+    // }
 
-    const response = await fetch(`${this.baseUrl}/bank`, {
+    const response = await fetch(`https://api.paystack.co/bank`, {
       headers: {
         Authorization: `Bearer ${this.secretKey}`,
       },

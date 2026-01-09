@@ -62,12 +62,14 @@ const transactionSchema = new mongoose.Schema(
       last4: { type: String },
       bank: { type: String },
       gatewayResponse: { type: String },
+      fees: { type: Number, default: 0 },
     },
 
     splits: {
       platformAmount: { type: Number, default: 0 },
       organizerAmount: { type: Number, default: 0 },
       organizerSubaccountCode: { type: String },
+      paystackFees: { type: Number, default: 0 },
     },
 
     retryCount: {

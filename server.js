@@ -1,57 +1,56 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const connectDB = require('./config/db');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const connectDB = require("./config/db");
 
-
-const authRoutes = require('./routes/authRoutes');
-const eventRoutes = require('./routes/eventRoutes');
-const ticketRoutes = require('./routes/ticketRoutes');
-const validationRoutes = require('./routes/validationRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const transactionRoutes = require('./routes/transactionRoutes');
-const disputeRoutes = require('./routes/disputeRoutes');
-const reconciliationRoutes = require('./routes/reconciliationRoutes');
-const auditRoutes = require('./routes/auditRoutes');
-const organizerRoutes = require('./routes/organizerRoutes');
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const authRoutes = require("./routes/authRoutes");
+const eventRoutes = require("./routes/eventRoutes");
+const ticketRoutes = require("./routes/ticketRoutes");
+const validationRoutes = require("./routes/validationRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
+const disputeRoutes = require("./routes/disputeRoutes");
+const reconciliationRoutes = require("./routes/reconciliationRoutes");
+const auditRoutes = require("./routes/auditRoutes");
+const organizerRoutes = require("./routes/organizerRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
-
 // connectDB();
 
-
-app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files (tickets PDFs)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+app.use("/api/auth", authRoutes);
+app.use("/api/events", eventRoutes);
+app.use("/api/tickets", ticketRoutes);
+app.use("/api/validate", validationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/api/disputes", disputeRoutes);
+app.use("/api/reconciliation", reconciliationRoutes);
+app.use("/api/audit", auditRoutes);
+app.use("/api/organizer", organizerRoutes);
+app.use("/api/orders", orderRoutes);
 
-app.use('/api/auth', authRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/tickets', ticketRoutes);
-app.use('/api/validate', validationRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/disputes', disputeRoutes);
-app.use('/api/reconciliation', reconciliationRoutes);
-app.use('/api/audit', auditRoutes);
-app.use('/api/organizer', organizerRoutes);
-
-
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date() });
+app.get("/api/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date() });
 });
 
 // Mock checkout page (for testing without real Paystack)
-app.get('/paystack-mock', (req, res)=> {
+app.get("/paystack-mock", (req, res) => {
   res.send(`
     <h1>Paystack Mock</h1>
     <p>This is a mock Paystack page for testing purposes</p>
@@ -61,11 +60,11 @@ app.get('/paystack-mock', (req, res)=> {
         window.location.href = 'http://localhost:5173/payment/verify?reference=mock-reference';
       }
     </script>
-  `)
-})
-app.get('/mock-checkout', (req, res) => {
-    const { ref, amount } = req.query;
-    res.send(`
+  `);
+});
+app.get("/mock-checkout", (req, res) => {
+  const { ref, amount } = req.query;
+  res.send(`
     <!DOCTYPE html>
     <html>
     <head>
@@ -102,18 +101,17 @@ app.use(errorHandler);
 // 404 Not Found Handler
 app.use(notFoundHandler);
 
-
 const PORT = process.env.PORT || 5000;
 
-const startServer = async() => {
+const startServer = async () => {
   await connectDB();
-    app.listen(PORT, () => {
-        console.log(`
+  app.listen(PORT, () => {
+    console.log(`
  Ticket System Server running on port ${PORT}
- Environment: ${process.env.NODE_ENV || 'development'}
+ Environment: ${process.env.NODE_ENV || "development"}
 🔗 API: http://localhost:${PORT}/api
   `);
-    })
-}
+  });
+};
 
 startServer();

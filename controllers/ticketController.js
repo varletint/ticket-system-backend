@@ -12,8 +12,6 @@ const auditService = require("../services/auditService");
  * Initialize ticket purchase with idempotency support
  * POST /api/tickets/purchase
  *
- * Accepts an Idempotency-Key header to prevent duplicate charges during retries.
- * If the same idempotency key is used, returns the existing transaction/order.
  */
 const initializePurchase = async (req, res) => {
   try {
@@ -106,8 +104,9 @@ const initializePurchase = async (req, res) => {
         userId: req.user._id.toString(),
       },
     });
+    console.log(paymentResult);
 
-    if (!paymentResult.success) {
+    if (!paymentResult.status) {
       return res.status(500).json({ message: "Failed to initialize payment" });
     }
 
@@ -125,7 +124,6 @@ const initializePurchase = async (req, res) => {
       },
     });
 
-    // Create transaction record with idempotency key
     const transactionKey = idempotencyKey || `auto_${order._id}_${Date.now()}`;
     const transaction = await Transaction.create({
       idempotencyKey: transactionKey,
@@ -231,9 +229,48 @@ const verifyPayment = async (req, res) => {
     order.paystack.channel = verification.data.channel;
     order.paystack.paidAt = verification.data.paid_at;
 
-    // Calculate splits
-    const splits = paystackService.calculateSplit(order.totalAmount);
-    order.splits = splits;
+    const paidAmountKobo = verification.data.amount;
+    const paidAmountNaira = paidAmountKobo / 100;
+    const feesKobo = verification.data.fees || 0;
+    const feesNaira = feesKobo / 100;
+
+    console.log(
+      "Paystack verification response:",
+      JSON.stringify(verification.data, null, 2)
+    );
+    let splits;
+    if (verification.data.subaccount) {
+      const subaccountData = verification.data.subaccount;
+      const shareAmount = verification.data.share?.amount || 0;
+      const platformAmountKobo = shareAmount;
+      const platformAmountNaira = platformAmountKobo / 100;
+
+      // Organizer gets the remainder after platform share and fees
+      // Paystack typically deducts fees from main account unless bearer is specified
+      const organizerAmountNaira =
+        paidAmountNaira - platformAmountNaira - feesNaira;
+
+      splits = {
+        platformAmount: platformAmountNaira,
+        organizerAmount: organizerAmountNaira,
+        paystackFees: feesNaira,
+        subaccountCode: subaccountData.subaccount_code,
+        settlementBank: subaccountData.settlement_bank,
+        accountNumber: subaccountData.account_number,
+      };
+
+      console.log("Split payment data extracted:", splits);
+    } else {
+      // No subaccount - use local calculation as fallback
+      splits = paystackService.calculateSplit(order.totalAmount);
+      splits.paystackFees = feesNaira;
+      console.log("No subaccount found, using calculated splits:", splits);
+    }
+
+    order.splits = {
+      platformAmount: splits.platformAmount,
+      organizerAmount: splits.organizerAmount,
+    };
 
     const transaction = await Transaction.findOne({ order: order._id });
     if (transaction) {
@@ -242,6 +279,7 @@ const verifyPayment = async (req, res) => {
       transaction.gateway.transactionId = verification.data.id;
       transaction.gateway.channel = verification.data.channel;
       transaction.gateway.gatewayResponse = verification.data.gateway_response;
+      transaction.gateway.fees = feesNaira;
       if (verification.data.authorization) {
         transaction.gateway.cardType =
           verification.data.authorization.card_type;
@@ -250,6 +288,10 @@ const verifyPayment = async (req, res) => {
       }
       transaction.splits.platformAmount = splits.platformAmount;
       transaction.splits.organizerAmount = splits.organizerAmount;
+      transaction.splits.paystackFees = splits.paystackFees;
+      if (splits.subaccountCode) {
+        transaction.splits.organizerSubaccountCode = splits.subaccountCode;
+      }
       await transaction.save();
 
       await auditService.logTransaction(
