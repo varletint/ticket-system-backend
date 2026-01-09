@@ -4,15 +4,15 @@ const validateEnv = require("./utils/validateEnv");
 // validateEnv(); // Commented out to prevent fatal startup errors on Vercel
 
 const express = require("express");
-const cors = require("cors");
+// const cors = require("cors");
 const path = require("path");
-const helmet = require("helmet");
-const compression = require("compression");
-const rateLimit = require("express-rate-limit");
-const mongoSanitize = require("express-mongo-sanitize");
+// const helmet = require("helmet");
+// const compression = require("compression");
+// const rateLimit = require("express-rate-limit");
+// const mongoSanitize = require("express-mongo-sanitize");
 
 const connectDB = require("./config/db");
-const logger = require("./utils/logger");
+// const logger = require("./utils/logger");
 
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
@@ -29,60 +29,60 @@ const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
-app.set("trust proxy", true);
+// app.set("trust proxy", true);
 
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-  })
-);
+// app.use(
+//   helmet({
+//     crossOriginResourcePolicy: { policy: "cross-origin" },
+//   })
+// );
 
-app.use(mongoSanitize());
+// app.use(mongoSanitize());
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  message: { message: "Too many requests, please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api", limiter);
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 50,
+//   message: { message: "Too many requests, please try again later." },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// });
+// app.use("/api", limiter);
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    message: "Too many authentication attempts, please try again later.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api/auth", authLimiter);
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 10,
+//   message: {
+//     message: "Too many authentication attempts, please try again later.",
+//   },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// });
+// app.use("/api/auth", authLimiter);
 
-app.use(compression());
+// app.use(compression());
 
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    credentials: true,
-  })
-);
+// app.use(
+//   cors({
+//     origin: process.env.CLIENT_URL || "http://localhost:5173",
+//     credentials: true,
+//   })
+// );
 app.use(express.json({ limit: "10kb" })); // Limit body size
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
-app.use((req, res, next) => {
-  req.clientIp =
-    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-    req.headers["x-real-ip"] ||
-    req.ip?.replace(/^::ffff:/, "") ||
-    req.connection?.remoteAddress?.replace(/^::ffff:/, "") ||
-    "unknown";
-  next();
-});
+// app.use((req, res, next) => {
+//   req.clientIp =
+//     req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+//     req.headers["x-real-ip"] ||
+//     req.ip?.replace(/^::ffff:/, "") ||
+//     req.connection?.remoteAddress?.replace(/^::ffff:/, "") ||
+//     "unknown";
+//   next();
+// });
 
 app.use(logger.requestLogger);
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/events", eventRoutes);
@@ -113,10 +113,10 @@ const startServer = async () => {
     await connectDB();
 
     // Skip app.listen on Vercel
-    if (process.env.VERCEL) {
-      console.log("Running in Vercel environment - skipping app.listen()");
-      return;
-    }
+    // if (process.env.VERCEL) {
+    //   console.log("Running in Vercel environment - skipping app.listen()");
+    //   return;
+    // }
 
     const server = app.listen(PORT, () => {
       console.log(`
@@ -129,31 +129,31 @@ const startServer = async () => {
     });
 
     // Graceful Shutdown
-    const shutdown = (signal) => {
-      console.log(`\nReceived ${signal}. Shutting down gracefully...`);
-      server.close(() => {
-        console.log("HTTP server closed.");
-        const mongoose = require("mongoose");
-        mongoose.connection.close(false, () => {
-          console.log("Database connection closed.");
-          process.exit(0);
-        });
-      });
+    // const shutdown = (signal) => {
+    //   console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+    //   server.close(() => {
+    //     console.log("HTTP server closed.");
+    //     const mongoose = require("mongoose");
+    //     mongoose.connection.close(false, () => {
+    //       console.log("Database connection closed.");
+    //       process.exit(0);
+    //     });
+    //   });
 
-      // Force close if it takes too long
-      setTimeout(() => {
-        console.error(
-          "Could not close connections in time, forcefully shutting down"
-        );
-        process.exit(1);
-      }, 10000);
-    };
+    //   // Force close if it takes too long
+    //   setTimeout(() => {
+    //     console.error(
+    //       "Could not close connections in time, forcefully shutting down"
+    //     );
+    //     process.exit(1);
+    //   }, 10000);
+    // };
 
-    process.on("SIGTERM", () => shutdown("SIGTERM"));
-    process.on("SIGINT", () => shutdown("SIGINT"));
+    // process.on("SIGTERM", () => shutdown("SIGTERM"));
+    // process.on("SIGINT", () => shutdown("SIGINT"));
   } catch (err) {
     console.error("Failed to start server:", err);
-    process.exit(1);
+    // process.exit(1);
   }
 };
 
