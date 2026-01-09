@@ -5,7 +5,7 @@ const connectDB = require("./config/db");
 
 const authRoutes = require("./routes/authRoutes");
 const eventRoutes = require("./routes/eventRoutes");
-// const ticketRoutes = require("./routes/ticketRoutes");
+const ticketRoutes = require("./routes/ticketRoutes");
 // const validationRoutes = require("./routes/validationRoutes");
 // const adminRoutes = require("./routes/adminRoutes");
 // const transactionRoutes = require("./routes/transactionRoutes");
