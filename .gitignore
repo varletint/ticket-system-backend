@@ -3,3 +3,5 @@ node_modules
 play.js
 .env.example
 uploads
+.vercel
+.env*.local

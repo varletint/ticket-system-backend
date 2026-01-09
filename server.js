@@ -109,14 +109,47 @@ app.use(notFoundHandler);
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  await connectDB();
-  app.listen(PORT, () => {
-    console.log(`
- Ticket System Server running on port ${PORT}
- Environment: ${process.env.NODE_ENV || "development"}
-🔗 API: http://localhost:${PORT}/api
-  `);
-  });
+  try {
+    await connectDB();
+    const server = app.listen(PORT, () => {
+      console.log(`
+ Ticket System Server
+ Status: Running
+ Env:    ${process.env.NODE_ENV || "development"}
+ Port:   ${PORT}
+ API:    http://localhost:${PORT}/api
+      `);
+    });
+
+    // Graceful Shutdown
+    const shutdown = (signal) => {
+      console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+      server.close(() => {
+        console.log("HTTP server closed.");
+        const mongoose = require("mongoose");
+        mongoose.connection.close(false, () => {
+          console.log("Database connection closed.");
+          process.exit(0);
+        });
+      });
+
+      // Force close if it takes too long
+      setTimeout(() => {
+        console.error(
+          "Could not close connections in time, forcefully shutting down"
+        );
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
 };
 
 startServer();
+
+module.exports = app;
