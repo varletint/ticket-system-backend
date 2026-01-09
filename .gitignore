@@ -7,3 +7,4 @@ uploads
 .env*.local
 ci-cd.yml
 server2.js
+server1.js
