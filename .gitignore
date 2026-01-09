@@ -5,3 +5,4 @@ play.js
 uploads
 .vercel
 .env*.local
+ci-cd.yml

@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const validateEnv = require("./utils/validateEnv");
+// const validateEnv = require("./utils/validateEnv");
 // validateEnv(); // Commented out to prevent fatal startup errors on Vercel
 
 const express = require("express");
@@ -14,17 +14,17 @@ const path = require("path");
 const connectDB = require("./config/db");
 // const logger = require("./utils/logger");
 
-const authRoutes = require("./routes/authRoutes");
-const eventRoutes = require("./routes/eventRoutes");
-const ticketRoutes = require("./routes/ticketRoutes");
-const validationRoutes = require("./routes/validationRoutes");
-const adminRoutes = require("./routes/adminRoutes");
-const transactionRoutes = require("./routes/transactionRoutes");
-const disputeRoutes = require("./routes/disputeRoutes");
-const reconciliationRoutes = require("./routes/reconciliationRoutes");
-const auditRoutes = require("./routes/auditRoutes");
-const organizerRoutes = require("./routes/organizerRoutes");
-const orderRoutes = require("./routes/orderRoutes");
+// const authRoutes = require("./routes/authRoutes");
+// const eventRoutes = require("./routes/eventRoutes");
+// const ticketRoutes = require("./routes/ticketRoutes");
+// const validationRoutes = require("./routes/validationRoutes");
+// const adminRoutes = require("./routes/adminRoutes");
+// const transactionRoutes = require("./routes/transactionRoutes");
+// const disputeRoutes = require("./routes/disputeRoutes");
+// const reconciliationRoutes = require("./routes/reconciliationRoutes");
+// const auditRoutes = require("./routes/auditRoutes");
+// const organizerRoutes = require("./routes/organizerRoutes");
+// const orderRoutes = require("./routes/orderRoutes");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const app = express();
@@ -84,17 +84,17 @@ app.use(logger.requestLogger);
 
 // app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use("/api/auth", authRoutes);
-app.use("/api/events", eventRoutes);
-app.use("/api/tickets", ticketRoutes);
-app.use("/api/validate", validationRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/transactions", transactionRoutes);
-app.use("/api/disputes", disputeRoutes);
-app.use("/api/reconciliation", reconciliationRoutes);
-app.use("/api/audit", auditRoutes);
-app.use("/api/organizer", organizerRoutes);
-app.use("/api/orders", orderRoutes);
+// app.use("/api/auth", authRoutes);
+// app.use("/api/events", eventRoutes);
+// app.use("/api/tickets", ticketRoutes);
+// app.use("/api/validate", validationRoutes);
+// app.use("/api/admin", adminRoutes);
+// app.use("/api/transactions", transactionRoutes);
+// app.use("/api/disputes", disputeRoutes);
+// app.use("/api/reconciliation", reconciliationRoutes);
+// app.use("/api/audit", auditRoutes);
+// app.use("/api/organizer", organizerRoutes);
+// app.use("/api/orders", orderRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date() });
