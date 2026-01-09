@@ -6,5 +6,5 @@ uploads
 .vercel
 .env*.local
 ci-cd.yml
-server2.js
+server3.js
 server1.js
