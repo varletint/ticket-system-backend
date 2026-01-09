@@ -19,7 +19,8 @@ const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const app = express();
 
-// connectDB();
+// Trust proxy - needed to get real client IP behind proxies/load balancers
+app.set("trust proxy", true);
 
 app.use(
   cors({
@@ -29,6 +30,16 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+  req.clientIp =
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.headers["x-real-ip"] ||
+    req.ip?.replace(/^::ffff:/, "") ||
+    req.connection?.remoteAddress?.replace(/^::ffff:/, "") ||
+    "unknown";
+  next();
+});
 
 // Serve uploaded files (tickets PDFs)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

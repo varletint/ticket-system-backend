@@ -140,7 +140,7 @@ const initializePurchase = async (req, res) => {
         organizerSubaccountCode: subaccountCode,
       },
       metadata: {
-        ipAddress: req.ip,
+        ipAddress: req.clientIp,
         userAgent: req.get("user-agent"),
         tierName: tier.name,
         quantity,
