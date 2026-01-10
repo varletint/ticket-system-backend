@@ -10,7 +10,7 @@ const logger = require("../utils/logger");
  * Defines valid state transitions for transactions
  */
 const STATE_TRANSITIONS = {
-  initiated: ["processing", "failed"],
+  initiated: ["processing", "completed", "failed"],
   processing: ["completed", "failed"],
   completed: ["refunded", "partially_refunded"],
   failed: ["processing"], // retry allowed
