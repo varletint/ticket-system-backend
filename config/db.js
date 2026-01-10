@@ -1,44 +1,47 @@
 const mongoose = require("mongoose");
 
-// Cache connection for serverless environments (Vercel)
-let cachedConnection = null;
-let connectionPromise = null;
+// Cache connection for Vercel serverless
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 const connectDB = async () => {
   // Return cached connection if already connected
-  if (cachedConnection && mongoose.connection.readyState === 1) {
-    return cachedConnection;
+  if (cached.conn) {
+    return cached.conn;
   }
 
-  // If already connecting, wait for that to complete
-  if (connectionPromise) {
-    return connectionPromise;
-  }
+  // If not connecting, start connection
+  if (!cached.promise) {
+    const opts = {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    };
 
-  connectionPromise = (async () => {
-    try {
-      // Configure mongoose for serverless
-      mongoose.set("bufferCommands", false);
-
-      const conn = await mongoose.connect(process.env.MONGODB_URI, {
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 45000,
+    cached.promise = mongoose
+      .connect(process.env.MONGODB_URI, opts)
+      .then((mongoose) => {
+        console.log(`MongoDB Connected: ${mongoose.connection.host}`);
+        return mongoose;
+      })
+      .catch((error) => {
+        console.error(`MongoDB Connection Error: ${error.message}`);
+        cached.promise = null;
+        throw error;
       });
+  }
 
-      cachedConnection = conn;
-      console.log(`MongoDB Connected: ${conn.connection.host}`);
-      return conn;
-    } catch (error) {
-      console.error(`MongoDB Connection Error: ${error.message}`);
-      cachedConnection = null;
-      connectionPromise = null;
-      // Don't throw - let individual requests fail gracefully
-      return null;
-    }
-  })();
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
 
-  return connectionPromise;
+  return cached.conn;
 };
 
 module.exports = connectDB;

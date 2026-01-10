@@ -97,6 +97,19 @@ app.use(logger.requestLogger);
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Ensure database connection before handling API requests
+app.use("/api/v1", async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: "Database connection failed. Please try again.",
+    });
+  }
+});
+
 app.use("/api/v1", apiRoutes);
 
 app.get("/api/v1/health", (req, res) => {
