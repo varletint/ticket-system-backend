@@ -77,20 +77,20 @@ class PaystackService {
   }
 
   async verifyPayment(reference) {
-    if (this.isMock) {
-      const success = Math.random() > 0.1;
-      return {
-        success: true,
-        data: {
-          status: success ? "success" : "failed",
-          reference,
-          amount: 1000000,
-          channel: "card",
-          paid_at: new Date().toISOString(),
-          metadata: {},
-        },
-      };
-    }
+    // if (this.isMock) {
+    //   const success = Math.random() > 0.1;
+    //   return {
+    //     success: true,
+    //     data: {
+    //       status: success ? "success" : "failed",
+    //       reference,
+    //       amount: 1000000,
+    //       channel: "card",
+    //       paid_at: new Date().toISOString(),
+    //       metadata: {},
+    //     },
+    //   };
+    // }
 
     const response = await fetch(
       `${this.baseUrl}/transaction/verify/${reference}`,

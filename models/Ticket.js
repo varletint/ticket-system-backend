@@ -46,7 +46,6 @@ const ticketSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-ticketSchema.index({ qrCode: 1 });
 ticketSchema.index({ user: 1, status: 1 });
 ticketSchema.index({ event: 1, status: 1 });
 ticketSchema.index({ order: 1 });
