@@ -185,7 +185,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   // Verify with Paystack
   const verification = await paystackService.verifyPayment(reference);
 
-  if (!verification.success || verification.data.status !== "success") {
+  if (!verification.status || verification.data.status !== "success") {
     // Only fail if not already in a final state (webhook may have handled it)
     if (!["failed", "completed"].includes(transaction.status)) {
       await transactionService.failTransaction(transaction._id, {
