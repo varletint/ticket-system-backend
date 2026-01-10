@@ -175,23 +175,32 @@ const verifyPayment = asyncHandler(async (req, res) => {
     });
   }
 
+  // Check if already failed (webhook may have processed it first)
+  if (transaction.status === "failed") {
+    throw ApiError.badRequest(
+      transaction.failureReason || "Payment failed. Please try again."
+    );
+  }
+
   // Verify with Paystack
   const verification = await paystackService.verifyPayment(reference);
 
   if (!verification.success || verification.data.status !== "success") {
-    // Use TransactionService to fail the transaction atomically
-    await transactionService.failTransaction(transaction._id, {
-      reason:
-        verification.data?.gateway_response || "Payment verification failed",
-      code: verification.data?.status,
-      details: verification.data,
-    });
+    // Only fail if not already in a final state (webhook may have handled it)
+    if (!["failed", "completed"].includes(transaction.status)) {
+      await transactionService.failTransaction(transaction._id, {
+        reason:
+          verification.data?.gateway_response || "Payment verification failed",
+        code: verification.data?.status,
+        details: verification.data,
+      });
 
-    await auditService.logTransaction(
-      "transaction.fail",
-      transaction,
-      req.user
-    );
+      await auditService.logTransaction(
+        "transaction.fail",
+        transaction,
+        req.user
+      );
+    }
 
     throw ApiError.badRequest("Payment verification failed");
   }
