@@ -29,27 +29,27 @@ app.use(
 
 app.use(mongoSanitize());
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { message: "Too many requests, please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-});
-app.use("/api/v1", limiter);
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 100,
+//   message: { message: "Too many requests, please try again later." },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   validate: { trustProxy: false },
+// });
+// app.use("/api/v1", limiter);
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: {
-    message: "Too many authentication attempts, please try again later.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: { trustProxy: false },
-});
-app.use("/api/v1/auth", authLimiter);
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 10,
+//   message: {
+//     message: "Too many authentication attempts, please try again later.",
+//   },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   validate: { trustProxy: false },
+// });
+// app.use("/api/v1/auth", authLimiter);
 
 app.use(compression());
 
