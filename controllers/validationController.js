@@ -202,11 +202,15 @@ const getEventCheckInStats = async (req, res) => {
  */
 const getValidatorEvents = async (req, res) => {
   try {
+    console.log("User assignedEvents:", req.user.assignedEvents);
+
     const events = await Event.find({
       _id: { $in: req.user.assignedEvents },
-      status: "published",
-      eventDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      // status: "published",
+      // eventDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Temporarily removed for debugging
     }).select("title eventDate venue bannerImage");
+
+    // console.log("Found events:", events);
 
     res.json({ events });
   } catch (error) {
