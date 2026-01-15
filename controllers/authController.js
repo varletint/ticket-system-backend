@@ -102,6 +102,7 @@ const login = asyncHandler(async (req, res) => {
       fullName: user.fullName,
       role: user.role,
       organizerProfile: user.organizerProfile,
+      assignedEvents: user.assignedEvents,
     },
     accessToken,
     refreshToken,

@@ -5,7 +5,7 @@ const { asyncHandler, ApiError } = require("../middleware/errorHandler");
 const paystackService = require("../services/paystackService");
 
 const addSubAccount = asyncHandler(async (req, res) => {
-  const { businessName, bankCode, accountNumber, percentageCharge } = req.body;
+  const { businessName, bankCode, accountNumber, platformFee } = req.body;
 
   if (!businessName || !bankCode || !accountNumber) {
     throw ApiError.badRequest(
@@ -32,7 +32,7 @@ const addSubAccount = asyncHandler(async (req, res) => {
     businessName,
     bankCode,
     accountNumber,
-    percentageCharge: percentageCharge || 90,
+    platformFeePercentage: platformFee || 10,
   });
 
   if (!result.status) {
@@ -41,12 +41,13 @@ const addSubAccount = asyncHandler(async (req, res) => {
     );
   }
 
+  user.organizerProfile.platformFeePercent = result.data.percentage_charge;
   user.organizerProfile.paystack = {
     subaccountCode: result.data.subaccount_code,
     businessName: result.data.business_name,
     bankCode: bankCode,
     accountNumber: accountNumber,
-    percentageCharge: result.data.percentage_charge,
+    percentageCharge: 100 - result.data.percentage_charge, // Platform's cut (10%)
     isActive: true,
   };
 

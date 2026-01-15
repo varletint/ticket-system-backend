@@ -86,6 +86,13 @@ const getEvent = asyncHandler(async (req, res) => {
  */
 
 const createEvent = asyncHandler(async (req, res) => {
+  // Check if organizer has set up payout account
+  if (!req.user.organizerProfile?.paystack?.isActive) {
+    throw ApiError.badRequest(
+      "Please set up your payout account before creating events"
+    );
+  }
+
   const {
     title,
     description,
