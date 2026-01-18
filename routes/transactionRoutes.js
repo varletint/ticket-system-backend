@@ -4,11 +4,6 @@ const transactionController = require("../controllers/transactionController");
 const { auth } = require("../middleware/auth");
 const { roleAuth } = require("../middleware/roleAuth");
 
-/**
- * Transaction Routes
- * All routes require authentication and admin role
- */
-
 router.use(auth);
 router.use(roleAuth(["admin"]));
 

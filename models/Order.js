@@ -54,7 +54,6 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Indexes
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ event: 1 });
 orderSchema.index({ paymentStatus: 1 });

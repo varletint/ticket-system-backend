@@ -11,7 +11,6 @@ class PDFService {
           margin: 30,
         });
 
-        // Collect data in chunks
         let buffers = [];
         doc.on("data", buffers.push.bind(buffers));
         doc.on("end", () => {
@@ -19,17 +18,14 @@ class PDFService {
           resolve(pdfBuffer);
         });
 
-        // Header background
         doc.rect(0, 0, 400, 120).fill("#1a1a2e");
 
-        // Event title
         doc
           .fillColor("#ffffff")
           .fontSize(20)
           .font("Helvetica-Bold")
           .text(event.title, 30, 30, { width: 340, align: "center" });
 
-        // Artist
         if (event.artist) {
           doc
             .fontSize(14)
@@ -37,7 +33,6 @@ class PDFService {
             .text(event.artist, 30, 60, { width: 340, align: "center" });
         }
 
-        // Date and time
         const eventDate = new Date(event.eventDate);
         const dateStr = eventDate.toLocaleDateString("en-NG", {
           weekday: "long",
@@ -55,10 +50,8 @@ class PDFService {
           align: "center",
         });
 
-        // Ticket details section
         doc.fillColor("#333333");
 
-        // Venue
         doc.fontSize(11).font("Helvetica-Bold").text("VENUE", 30, 140);
         doc.font("Helvetica").text(`${event.venue.name}`, 30, 155);
         doc
@@ -66,7 +59,6 @@ class PDFService {
           .fillColor("#666666")
           .text(`${event.venue.address || ""} ${event.venue.city}`, 30, 170);
 
-        // Ticket holder
         doc
           .fillColor("#333333")
           .fontSize(11)
@@ -75,7 +67,6 @@ class PDFService {
         doc.font("Helvetica").text(user.fullName, 30, 215);
         doc.fontSize(10).fillColor("#666666").text(user.email, 30, 230);
 
-        // Ticket type
         doc
           .fillColor("#333333")
           .fontSize(11)
@@ -87,17 +78,14 @@ class PDFService {
           .fillColor("#666666")
           .text(`₦${ticket.price.toLocaleString()}`, 220, 230);
 
-        // Divider line
         doc.moveTo(30, 260).lineTo(370, 260).stroke("#cccccc");
 
-        // QR Code section
         doc
           .fillColor("#333333")
           .fontSize(11)
           .font("Helvetica-Bold")
           .text("SCAN FOR ENTRY", 30, 280, { width: 340, align: "center" });
 
-        // Add QR code image
         if (qrImageDataUrl) {
           const base64Data = qrImageDataUrl.replace(
             /^data:image\/png;base64,/,
@@ -107,7 +95,6 @@ class PDFService {
           doc.image(qrBuffer, 125, 300, { width: 150, height: 150 });
         }
 
-        // Ticket ID
         doc
           .fontSize(8)
           .fillColor("#999999")
@@ -116,7 +103,6 @@ class PDFService {
             align: "center",
           });
 
-        // Footer
         doc.rect(0, 500, 400, 100).fill("#f5f5f5");
 
         doc

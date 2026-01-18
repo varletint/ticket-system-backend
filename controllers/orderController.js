@@ -6,11 +6,6 @@ const paystackService = require("../services/paystackService");
 const auditService = require("../services/auditService");
 const { asyncHandler, ApiError } = require("../middleware/errorHandler");
 
-/**
- * Order Controller
- * Handles user-facing order management
- */
-
 const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id })
     .populate("event", "title eventDate venue bannerImage")

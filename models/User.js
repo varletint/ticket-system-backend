@@ -31,7 +31,6 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
 
-    // Organizer-specific fields
     organizerProfile: {
       businessName: { type: String, trim: true },
       description: { type: String },
@@ -46,24 +45,20 @@ const userSchema = new mongoose.Schema(
       platformApprovedAt: { type: Date },
       platformRejectionReason: { type: String },
 
-      // Paystack Subaccount (created after approval)
       paystack: {
         subaccountCode: { type: String },
         businessName: { type: String },
         bankCode: { type: String },
         accountNumber: { type: String },
-        percentageCharge: { type: Number, default: 90 }, // Organizer gets 90%
+        percentageCharge: { type: Number, default: 90 },
         isActive: { type: Boolean, default: false },
       },
 
-      // Platform fee (remaining %)
       platformFeePercent: { type: Number, default: 10 },
     },
 
-    // Validator-specific: which events they can scan
     assignedEvents: [{ type: mongoose.Schema.Types.ObjectId, ref: "Event" }],
 
-    // Track which organizer created this validator
     createdByOrganizer: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }

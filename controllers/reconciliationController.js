@@ -4,11 +4,9 @@ const Event = require("../models/Event");
 const Transaction = require("../models/Transaction");
 const auditService = require("../services/auditService");
 
-// Get reconciliation summary
 const getSummary = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-
     const dateFilter = {};
     if (startDate) dateFilter.$gte = new Date(startDate);
     if (endDate) dateFilter.$lte = new Date(endDate);
@@ -31,7 +29,6 @@ const getSummary = async (req, res) => {
       ...matchStage,
       status: { $ne: "cancelled" },
     });
-
     const eventStats = await Event.aggregate([
       { $match: {} },
       {
@@ -105,26 +102,25 @@ const getSummary = async (req, res) => {
         },
         health: {
           ticketsHealthy: ticketDiscrepancy === 0,
-          revenueHealthy: Math.abs(revenueDiscrepancy) < 100, // Allow small rounding errors
+          revenueHealthy: Math.abs(revenueDiscrepancy) < 100,
           transactionsHealthy: transactionDiscrepancy === 0,
         },
       },
     });
   } catch (error) {
     console.error("Get reconciliation summary error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch reconciliation summary",
-    });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Failed to fetch reconciliation summary",
+      });
   }
 };
 
-// Find mismatches
 const getMismatches = async (req, res) => {
   try {
     const mismatches = [];
-
-    // Find orders without corresponding tickets
     const ordersWithoutTickets = await Order.find({
       paymentStatus: "completed",
       tickets: { $size: 0 },
@@ -149,14 +145,12 @@ const getMismatches = async (req, res) => {
       });
     }
 
-    // Find events with mismatched sold counts
     const events = await Event.find({ status: "published" });
     for (const event of events) {
       const actualTickets = await Ticket.countDocuments({
         event: event._id,
         status: { $ne: "cancelled" },
       });
-
       if (actualTickets !== event.totalTicketsSold) {
         mismatches.push({
           type: "event_ticket_count_mismatch",
@@ -173,7 +167,6 @@ const getMismatches = async (req, res) => {
       }
     }
 
-    // Find completed orders without transactions
     const completedOrders = await Order.find({
       paymentStatus: "completed",
     }).select("_id");
@@ -198,7 +191,6 @@ const getMismatches = async (req, res) => {
       }
     }
 
-    // Find orphaned tickets (no valid order)
     const orphanedTickets = await Ticket.aggregate([
       {
         $lookup: {
@@ -211,7 +203,6 @@ const getMismatches = async (req, res) => {
       { $match: { orderData: { $size: 0 } } },
       { $limit: 50 },
     ]);
-
     for (const ticket of orphanedTickets) {
       mismatches.push({
         type: "orphaned_ticket",
@@ -242,11 +233,9 @@ const getMismatches = async (req, res) => {
   }
 };
 
-// Fix a specific mismatch
 const fixMismatch = async (req, res) => {
   try {
     const { type, entityId, action } = req.body;
-
     let result = { fixed: false, message: "" };
 
     switch (type) {
@@ -264,9 +253,7 @@ const fixMismatch = async (req, res) => {
         };
         break;
       }
-
       case "order_missing_tickets": {
-        // Would need to regenerate tickets - this is complex
         result = {
           fixed: false,
           message:
@@ -274,9 +261,7 @@ const fixMismatch = async (req, res) => {
         };
         break;
       }
-
       case "order_missing_transaction": {
-        // Create transaction record from order
         const order = await Order.findById(entityId).populate("event");
         if (order) {
           const transaction = new Transaction({
@@ -300,23 +285,16 @@ const fixMismatch = async (req, res) => {
         }
         break;
       }
-
       default:
         result = { fixed: false, message: "Unknown mismatch type" };
     }
 
-    // Log the fix attempt
     await auditService.logAdminAction(
       "admin.reconciliation_run",
       req.user,
-      {
-        type: "Reconciliation",
-        id: entityId,
-        name: type,
-      },
+      { type: "Reconciliation", id: entityId, name: type },
       { action, result }
     );
-
     res.json({ success: true, data: result });
   } catch (error) {
     console.error("Fix mismatch error:", error);
@@ -324,12 +302,9 @@ const fixMismatch = async (req, res) => {
   }
 };
 
-// Run full reconciliation report
 const runReconciliation = async (req, res) => {
   try {
     const startTime = Date.now();
-
-    // Fix event ticket counts
     const events = await Event.find({});
     let eventsFixed = 0;
 
@@ -338,12 +313,10 @@ const runReconciliation = async (req, res) => {
         event: event._id,
         status: { $ne: "cancelled" },
       });
-
       const actualRevenue = await Order.aggregate([
         { $match: { event: event._id, paymentStatus: "completed" } },
         { $group: { _id: null, total: { $sum: "$totalAmount" } } },
       ]);
-
       const revenue = actualRevenue[0]?.total || 0;
 
       if (
@@ -359,17 +332,12 @@ const runReconciliation = async (req, res) => {
     }
 
     const duration = Date.now() - startTime;
-
     await auditService.logAdminAction(
       "admin.reconciliation_run",
       req.user,
-      {
-        type: "System",
-        name: "Full Reconciliation",
-      },
+      { type: "System", name: "Full Reconciliation" },
       { eventsFixed, duration }
     );
-
     res.json({
       success: true,
       data: {
@@ -386,9 +354,4 @@ const runReconciliation = async (req, res) => {
   }
 };
 
-module.exports = {
-  getSummary,
-  getMismatches,
-  fixMismatch,
-  runReconciliation,
-};
+module.exports = { getSummary, getMismatches, fixMismatch, runReconciliation };

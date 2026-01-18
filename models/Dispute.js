@@ -111,7 +111,7 @@ const disputeSchema = new mongoose.Schema(
 
     evidence: [
       {
-        type: { type: String }, // screenshot, receipt, email, etc.
+        type: { type: String },
         url: { type: String },
         description: { type: String },
         uploadedAt: { type: Date, default: Date.now },

@@ -29,27 +29,27 @@ app.use(
 
 app.use(mongoSanitize());
 
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000,
-//   max: 100,
-//   message: { message: "Too many requests, please try again later." },
-//   standardHeaders: true,
-//   legacyHeaders: false,
-//   validate: { trustProxy: false },
-// });
-// app.use("/api/v1", limiter);
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { message: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { trustProxy: false },
+});
+app.use("/api/v1", limiter);
 
-// const authLimiter = rateLimit({
-//   windowMs: 15 * 60 * 1000,
-//   max: 10,
-//   message: {
-//     message: "Too many authentication attempts, please try again later.",
-//   },
-//   standardHeaders: true,
-//   legacyHeaders: false,
-//   validate: { trustProxy: false },
-// });
-// app.use("/api/v1/auth", authLimiter);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    message: "Too many authentication attempts, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { trustProxy: false },
+});
+app.use("/api/v1/auth", authLimiter);
 
 app.use(compression());
 
@@ -60,8 +60,6 @@ app.use(
   })
 );
 
-// Webhook routes need raw body for signature validation
-// Must be BEFORE express.json() middleware
 const webhookRoutes = require("./routes/webhookRoutes");
 app.use(
   "/api/v1/webhooks",
@@ -97,7 +95,6 @@ app.use(logger.requestLogger);
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Ensure database connection before handling API requests
 app.use("/api/v1", async (req, res, next) => {
   try {
     await connectDB();
@@ -120,10 +117,8 @@ app.get("/api/v1/health", (req, res) => {
   });
 });
 
-// Global Error Handler
 app.use(errorHandler);
 
-// 404 Not Found Handler
 app.use(notFoundHandler);
 
 const PORT = process.env.PORT || 5000;
@@ -132,7 +127,6 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    // Skip app.listen on Vercel
     if (process.env.VERCEL) {
       console.log("Running in Vercel environment - skipping app.listen()");
       return;
@@ -148,7 +142,6 @@ const startServer = async () => {
       `);
     });
 
-    // Graceful Shutdown
     const shutdown = (signal) => {
       console.log(`\nReceived ${signal}. Shutting down gracefully...`);
       server.close(() => {
@@ -160,7 +153,6 @@ const startServer = async () => {
         });
       });
 
-      // Force close if it takes too long
       setTimeout(() => {
         console.error(
           "Could not close connections in time, forcefully shutting down"

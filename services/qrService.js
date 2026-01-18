@@ -4,9 +4,6 @@ const crypto = require("crypto");
 const SECRET_KEY = process.env.QR_SECRET_KEY || "default-secret";
 
 class QRService {
-  /**
-   * Generate a cryptographically signed ticket token
-   */
   generateTicketToken(ticketId, eventId) {
     const payload = {
       tid: ticketId.toString(),
@@ -21,7 +18,6 @@ class QRService {
       .digest("hex")
       .substring(0, 16);
 
-    // Combine payload + signature and encode
     const token = Buffer.from(
       JSON.stringify({
         ...payload,
@@ -32,17 +28,12 @@ class QRService {
     return token;
   }
 
-  /**
-   * Verify a scanned ticket token
-   */
   verifyTicketToken(token) {
     try {
-      // Decode the token
       const decoded = JSON.parse(Buffer.from(token, "base64url").toString());
 
       const { sig, ...payload } = decoded;
 
-      // Recreate signature and compare
       const expectedSig = crypto
         .createHmac("sha256", SECRET_KEY)
         .update(JSON.stringify(payload))
@@ -67,9 +58,6 @@ class QRService {
     }
   }
 
-  /**
-   * Generate QR code as base64 data URL
-   */
   async generateQRImage(token, options = {}) {
     const qrOptions = {
       errorCorrectionLevel: "M",
@@ -86,9 +74,6 @@ class QRService {
     return qrDataUrl;
   }
 
-  /**
-   * Generate QR code and save to file
-   */
   async generateQRFile(token, filePath) {
     await QRCode.toFile(filePath, token, {
       errorCorrectionLevel: "H",

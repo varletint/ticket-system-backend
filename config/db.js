@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-// Cache connection for Vercel serverless
 let cached = global.mongoose;
 
 if (!cached) {
@@ -8,12 +7,10 @@ if (!cached) {
 }
 
 const connectDB = async () => {
-  // Return cached connection if already connected
   if (cached.conn) {
     return cached.conn;
   }
 
-  // If not connecting, start connection
   if (!cached.promise) {
     const opts = {
       maxPoolSize: 10,

@@ -8,11 +8,6 @@ const {
   logDeleteEvent,
 } = require("../utils/auditHelper");
 
-/**
- * Get all published events (public)
- * GET /api/events
- */
-
 const getEvents = asyncHandler(async (req, res) => {
   const { city, category, search, page = 1, limit = 12 } = req.query;
 
@@ -54,11 +49,6 @@ const getEvents = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Get single event by ID (public)
- * GET /api/events/:id
- */
-
 const getEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id).populate(
     "organizer",
@@ -80,13 +70,7 @@ const getEvent = asyncHandler(async (req, res) => {
   res.json({ event });
 });
 
-/**
- * Create new event (organizer only)
- * POST /api/events
- */
-
 const createEvent = asyncHandler(async (req, res) => {
-  // Check if organizer has set up payout account
   if (!req.user.organizerProfile?.paystack?.isActive) {
     throw ApiError.badRequest(
       "Please set up your payout account before creating events"
@@ -145,7 +129,6 @@ const deleteEvent = asyncHandler(async (req, res) => {
     throw ApiError.badRequest("Event is already deleted");
   }
 
-  // Soft delete
   event.deletedAt = new Date();
   event.deletedBy = req.user._id;
   await event.save();
@@ -154,11 +137,6 @@ const deleteEvent = asyncHandler(async (req, res) => {
 
   res.json({ message: "Event deleted", event });
 });
-
-/**
- * Update event (organizer only)
- * PUT /api/events/:id
- */
 
 const updateEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
@@ -198,10 +176,6 @@ const updateEvent = asyncHandler(async (req, res) => {
   res.json({ message: "Event updated", event });
 });
 
-/**
- * Publish event (approved organizer only)
- * POST /api/events/:id/publish
- */
 const publishEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
@@ -223,7 +197,6 @@ const publishEvent = async (req, res) => {
         .json({ message: "Only draft events can be published" });
     }
 
-    // Validate event has required fields
     if (!event.ticketTiers || event.ticketTiers.length === 0) {
       return res
         .status(400)
@@ -246,11 +219,6 @@ const publishEvent = async (req, res) => {
     res.status(500).json({ message: "Error publishing event" });
   }
 };
-
-/**
- * Cancel event (organizer only)
- * POST /api/events/:id/cancel
- */
 
 const cancelEvent = asyncHandler(async (req, res) => {
   const event = await Event.findById(req.params.id);
@@ -276,15 +244,9 @@ const cancelEvent = asyncHandler(async (req, res) => {
     entity: { type: "Event", id: event._id, name: event.title },
   });
 
-  // TODO: Handle refunds for sold tickets
-
   res.json({ message: "Event cancelled", event });
 });
 
-/**
- * Get organizer's own events
- * GET /api/events/my-events
- */
 const getMyEvents = asyncHandler(async (req, res) => {
   const events = await Event.find({ organizer: req.user._id }).sort({
     createdAt: -1,
@@ -293,21 +255,14 @@ const getMyEvents = asyncHandler(async (req, res) => {
   res.json({ events });
 });
 
-/**
- * Get event analytics (organizer only)
- * GET /api/events/:id/analytics
- */
 const getEventAnalytics = asyncHandler(async (req, res) => {
   const eventId = new mongoose.Types.ObjectId(req.params.id);
 
   const [result] = await Event.aggregate([
-    // Match the specific event
     { $match: { _id: eventId, deletedAt: null } },
 
-    // Unwind ticket tiers to process each tier
     { $unwind: { path: "$ticketTiers", preserveNullAndEmptyArrays: true } },
 
-    // Group back and calculate stats
     {
       $group: {
         _id: "$_id",
@@ -334,7 +289,6 @@ const getEventAnalytics = asyncHandler(async (req, res) => {
       },
     },
 
-    // Shape the final output
     {
       $project: {
         _id: 0,
@@ -358,7 +312,6 @@ const getEventAnalytics = asyncHandler(async (req, res) => {
     throw ApiError.notFound("Event not found");
   }
 
-  // Authorization check
   if (
     result.organizer.toString() !== req.user._id.toString() &&
     req.user.role !== "admin"
@@ -366,7 +319,6 @@ const getEventAnalytics = asyncHandler(async (req, res) => {
     throw ApiError.forbidden("Not authorized");
   }
 
-  // Remove organizer from response
   delete result.organizer;
 
   res.json(result);

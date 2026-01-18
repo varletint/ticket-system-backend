@@ -5,6 +5,7 @@ play.js
 uploads
 .vercel
 .env*.local
-ci-cd.yml
 server3.js
 server1.js
+fix-transaction.js
+test-verify.js

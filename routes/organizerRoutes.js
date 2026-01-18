@@ -10,13 +10,10 @@ const {
 const { auth } = require("../middleware/auth");
 const { requireApprovedOrganizer } = require("../middleware/roleAuth");
 
-// Bank routes
 router.get("/banks", getBanks);
 
-// Payout setup
 router.post("/setup-payout", auth, requireApprovedOrganizer, addSubAccount);
 
-// Validator management for organizer's events
 router.get(
   "/events/:eventId/validators",
   auth,

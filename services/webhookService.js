@@ -5,23 +5,11 @@ const qrService = require("./qrService");
 const Ticket = require("../models/Ticket");
 const logger = require("../utils/logger");
 
-/**
- * WebhookService
- * Handles Paystack webhook events with signature validation
- */
 class WebhookService {
   constructor() {
     this.secretKey = process.env.PAYSTACK_SECRET_KEY;
   }
 
-  /**
-   * Validate Paystack webhook signature
-   * Uses HMAC SHA512 to verify the request authenticity
-   *
-   * @param {string|Buffer} payload - Raw request body
-   * @param {string} signature - x-paystack-signature header value
-   * @returns {boolean} Whether signature is valid
-   */
   validateSignature(payload, signature) {
     if (!this.secretKey) {
       logger.warn("PAYSTACK_SECRET_KEY not set, skipping signature validation");
@@ -52,13 +40,6 @@ class WebhookService {
     }
   }
 
-  /**
-   * Process a Paystack webhook event
-   * Routes to appropriate handler based on event type
-   *
-   * @param {Object} event - Paystack webhook event
-   * @returns {Promise<Object>} Processing result
-   */
   async processEvent(event) {
     const { event: eventType, data } = event;
 
@@ -88,18 +69,10 @@ class WebhookService {
     }
   }
 
-  /**
-   * Handle successful charge event
-   * Completes the transaction and generates tickets
-   *
-   * @param {Object} data - Charge data from Paystack
-   * @returns {Promise<Object>} Processing result
-   */
   async handleChargeSuccess(data) {
     const { reference } = data;
 
     try {
-      // Find transaction by reference
       const transaction = await transactionService.findByReference(reference);
 
       if (!transaction) {
@@ -107,13 +80,11 @@ class WebhookService {
         return { handled: false, reason: "Transaction not found" };
       }
 
-      // Skip if already completed
       if (transaction.status === "completed") {
         logger.info(`Transaction already completed: ${transaction._id}`);
         return { handled: true, skipped: true, reason: "Already completed" };
       }
 
-      // Define ticket generator function
       const ticketGenerator = async (order, event, user, session) => {
         const tickets = [];
 
@@ -142,7 +113,6 @@ class WebhookService {
         return tickets;
       };
 
-      // Complete transaction using the service
       const result = await transactionService.completeTransaction(
         transaction._id,
         data,
@@ -171,7 +141,6 @@ class WebhookService {
         error: error.message,
       });
 
-      // Log the error but don't throw - webhooks should return 200
       await auditService.logError(error, {
         context: "webhook.charge.success",
         reference,
@@ -181,13 +150,6 @@ class WebhookService {
     }
   }
 
-  /**
-   * Handle failed charge event
-   * Marks the transaction as failed
-   *
-   * @param {Object} data - Charge data from Paystack
-   * @returns {Promise<Object>} Processing result
-   */
   async handleChargeFailed(data) {
     const { reference, gateway_response } = data;
 
@@ -199,7 +161,6 @@ class WebhookService {
         return { handled: false, reason: "Transaction not found" };
       }
 
-      // Skip if already failed or completed
       if (["failed", "completed"].includes(transaction.status)) {
         logger.info(
           `Transaction already in final state: ${transaction.status}`
@@ -207,7 +168,6 @@ class WebhookService {
         return { handled: true, skipped: true };
       }
 
-      // Fail the transaction
       await transactionService.failTransaction(transaction._id, {
         reason: gateway_response || "Payment failed",
         code: data.status,
@@ -234,48 +194,32 @@ class WebhookService {
     }
   }
 
-  /**
-   * Handle successful transfer event (for organizer payouts)
-   * @param {Object} data - Transfer data from Paystack
-   */
   async handleTransferSuccess(data) {
     logger.info("Transfer success webhook received", {
       reference: data.reference,
       amount: data.amount,
     });
 
-    // Future: Implement payout tracking
     return { handled: true, type: "transfer.success" };
   }
 
-  /**
-   * Handle failed transfer event
-   * @param {Object} data - Transfer data from Paystack
-   */
   async handleTransferFailed(data) {
     logger.warn("Transfer failed webhook received", {
       reference: data.reference,
       reason: data.reason,
     });
 
-    // Future: Implement payout failure handling
     return { handled: true, type: "transfer.failed" };
   }
 
-  /**
-   * Handle refund processed event
-   * @param {Object} data - Refund data from Paystack
-   */
   async handleRefundProcessed(data) {
     logger.info("Refund processed webhook received", {
       reference: data.transaction_reference,
       amount: data.amount,
     });
 
-    // Future: Update refund status from Paystack
     return { handled: true, type: "refund.processed" };
   }
 }
 
-// Export singleton instance
 module.exports = new WebhookService();

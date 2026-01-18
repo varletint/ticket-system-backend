@@ -74,14 +74,12 @@ const login = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email });
   if (!user) {
-    // Log failed login attempt - user not found
     logFailedLogin(req, email, "User not found");
     throw ApiError.unauthorized("Invalid email or password");
   }
 
   const isValid = await bcrypt.compare(password, user.password);
   if (!isValid) {
-    // Log failed login attempt - wrong password
     logFailedLogin(req, email, "Invalid password");
     throw ApiError.unauthorized("Invalid email or password");
   }
@@ -91,7 +89,6 @@ const login = asyncHandler(async (req, res) => {
   user.refreshToken = refreshToken;
   await user.save();
 
-  // Log successful login
   logUserLogin(req, user);
 
   res.json({

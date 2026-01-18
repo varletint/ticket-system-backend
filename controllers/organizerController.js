@@ -47,7 +47,7 @@ const addSubAccount = asyncHandler(async (req, res) => {
     businessName: result.data.business_name,
     bankCode: bankCode,
     accountNumber: accountNumber,
-    percentageCharge: 100 - result.data.percentage_charge, // Platform's cut (10%)
+    percentageCharge: 100 - result.data.percentage_charge,
     isActive: true,
   };
 
@@ -65,28 +65,20 @@ const addSubAccount = asyncHandler(async (req, res) => {
 
 const getBanks = asyncHandler(async (req, res) => {
   const result = await paystackService.getBanks();
-
   if (!result.status) {
     throw ApiError.badRequest("Failed to fetch banks");
   }
-
   res.json({ banks: result.data });
 });
 
-/**
- * Create a validator for an event
- * POST /api/organizer/events/:eventId/validators
- */
 const createValidator = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
   const { email, password, fullName, phone } = req.body;
 
-  // Validate required fields
   if (!email || !password || !fullName) {
     throw ApiError.badRequest("Email, password, and full name are required");
   }
 
-  // Verify organizer owns this event
   const event = await Event.findById(eventId);
   if (!event) {
     throw ApiError.notFound("Event not found");
@@ -96,33 +88,25 @@ const createValidator = asyncHandler(async (req, res) => {
     throw ApiError.forbidden("You can only add validators to your own events");
   }
 
-  // Check if user with this email already exists
   let validator = await User.findOne({ email: email.toLowerCase() });
 
   if (validator) {
-    // If user exists but is not a validator, reject
     if (validator.role !== "validator") {
       throw ApiError.badRequest(
         "A user with this email already exists with a different role"
       );
     }
-
-    // If already assigned to this event, reject
     if (validator.assignedEvents.includes(eventId)) {
       throw ApiError.badRequest(
         "This validator is already assigned to this event"
       );
     }
-
-    // Assign existing validator to this event
     validator.assignedEvents.push(eventId);
     await validator.save();
-
     if (!event.validators.includes(validator._id)) {
       event.validators.push(validator._id);
       await event.save();
     }
-
     return res.json({
       message: "Existing validator assigned to event",
       validator: {
@@ -133,9 +117,7 @@ const createValidator = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create new validator user
   const hashedPassword = await bcrypt.hash(password, 10);
-
   validator = new User({
     email: email.toLowerCase(),
     password: hashedPassword,
@@ -145,10 +127,7 @@ const createValidator = asyncHandler(async (req, res) => {
     createdByOrganizer: req.user._id,
     assignedEvents: [eventId],
   });
-
   await validator.save();
-
-  // Add validator to event
   event.validators.push(validator._id);
   await event.save();
 
@@ -162,64 +141,37 @@ const createValidator = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * Get all validators for an event
- * GET /api/organizer/events/:eventId/validators
- */
 const getEventValidators = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
-
-  // Verify organizer owns this event
   const event = await Event.findById(eventId).populate(
     "validators",
     "fullName email phone createdAt"
   );
-
-  if (!event) {
-    throw ApiError.notFound("Event not found");
-  }
-
+  if (!event) throw ApiError.notFound("Event not found");
   if (event.organizer.toString() !== req.user._id.toString()) {
     throw ApiError.forbidden(
       "You can only view validators for your own events"
     );
   }
-
   res.json({
-    event: {
-      id: event._id,
-      title: event.title,
-    },
+    event: { id: event._id, title: event.title },
     validators: event.validators,
   });
 });
 
-/**
- * Remove a validator from an event
- * DELETE /api/organizer/events/:eventId/validators/:validatorId
- */
 const removeValidatorFromEvent = asyncHandler(async (req, res) => {
   const { eventId, validatorId } = req.params;
-
-  // Verify organizer owns this event
   const event = await Event.findById(eventId);
-  if (!event) {
-    throw ApiError.notFound("Event not found");
-  }
-
+  if (!event) throw ApiError.notFound("Event not found");
   if (event.organizer.toString() !== req.user._id.toString()) {
     throw ApiError.forbidden(
       "You can only remove validators from your own events"
     );
   }
-
-  // Remove from event's validators
   event.validators = event.validators.filter(
     (v) => v.toString() !== validatorId
   );
   await event.save();
-
-  // Remove from validator's assignedEvents
   const validator = await User.findById(validatorId);
   if (validator) {
     validator.assignedEvents = validator.assignedEvents.filter(
@@ -227,10 +179,7 @@ const removeValidatorFromEvent = asyncHandler(async (req, res) => {
     );
     await validator.save();
   }
-
-  res.json({
-    message: "Validator removed from event",
-  });
+  res.json({ message: "Validator removed from event" });
 });
 
 module.exports = {

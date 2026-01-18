@@ -81,7 +81,6 @@ const eventSchema = new mongoose.Schema(
     totalTicketsSold: { type: Number, default: 0 },
     totalRevenue: { type: Number, default: 0 },
 
-    // Soft delete
     deletedAt: {
       type: Date,
       default: null,

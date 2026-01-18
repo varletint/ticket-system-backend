@@ -4,13 +4,6 @@ const Transaction = require("../models/Transaction");
 const auditService = require("../services/auditService");
 const { asyncHandler, ApiError } = require("../middleware/errorHandler");
 
-/**
- * Dispute Controller
- * Handles dispute creation, management, and resolution.
- */
-
-// Create a new dispute (user)
-// POST /api/disputes
 const createDispute = asyncHandler(async (req, res) => {
   const { orderId, type, subject, description } = req.body;
 
@@ -29,12 +22,10 @@ const createDispute = asyncHandler(async (req, res) => {
     throw ApiError.badRequest("An open dispute already exists for this order");
   }
 
-  // Priority check to determine priority based on type
   let priority = "medium";
   if (type === "double_charge" || type === "unauthorized") priority = "high";
   if (order.totalAmount > 50000) priority = "high";
 
-  // Calculate SLA deadlines
   const now = new Date();
   const responseDeadline = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const resolutionDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -76,7 +67,6 @@ const createDispute = asyncHandler(async (req, res) => {
   });
 });
 
-// Get disputes (admin gets all, users get their own)
 const getDisputes = asyncHandler(async (req, res) => {
   const {
     status,
@@ -124,8 +114,6 @@ const getDisputes = asyncHandler(async (req, res) => {
   });
 });
 
-// Get single dispute
-// GET /api/disputes/:id
 const getDispute = asyncHandler(async (req, res) => {
   const dispute = await Dispute.findById(req.params.id)
     .populate("user", "fullName email phone")
@@ -149,8 +137,6 @@ const getDispute = asyncHandler(async (req, res) => {
   res.json({ success: true, data: dispute });
 });
 
-// Update dispute (admin)
-// PUT /api/disputes/:id
 const updateDispute = asyncHandler(async (req, res) => {
   const { status, priority, assignedTo, notes } = req.body;
   const dispute = await Dispute.findById(req.params.id);
@@ -198,8 +184,6 @@ const updateDispute = asyncHandler(async (req, res) => {
   });
 });
 
-// Resolve dispute (admin)
-// POST /api/disputes/:id/resolve
 const resolveDispute = asyncHandler(async (req, res) => {
   const { resolutionType, refundAmount, notes } = req.body;
   const dispute = await Dispute.findById(req.params.id);
@@ -227,7 +211,6 @@ const resolveDispute = asyncHandler(async (req, res) => {
 
   await dispute.save();
 
-  // If refund, process it
   if (refundAmount > 0) {
     const transaction = await Transaction.findOne({ order: dispute.order });
     if (transaction) {
@@ -258,8 +241,6 @@ const resolveDispute = asyncHandler(async (req, res) => {
   });
 });
 
-// Reject dispute (admin)
-// POST /api/disputes/:id/reject
 const rejectDispute = asyncHandler(async (req, res) => {
   const { reason } = req.body;
   const dispute = await Dispute.findById(req.params.id);
@@ -298,8 +279,6 @@ const rejectDispute = asyncHandler(async (req, res) => {
   });
 });
 
-// Get dispute statistics (admin)
-// GET /api/disputes/stats
 const getDisputeStats = asyncHandler(async (req, res) => {
   const stats = await Dispute.aggregate([
     {

@@ -5,30 +5,16 @@ const Event = require("../models/Event");
 const Ticket = require("../models/Ticket");
 const logger = require("../utils/logger");
 
-/**
- * Transaction State Machine
- * Defines valid state transitions for transactions
- */
 const STATE_TRANSITIONS = {
   initiated: ["processing", "completed", "failed"],
   processing: ["completed", "failed"],
   completed: ["refunded", "partially_refunded"],
-  failed: ["processing"], // retry allowed
+  failed: ["processing"],
   refunded: [],
   partially_refunded: ["refunded"],
 };
 
-/**
- * TransactionService
- * Handles all transaction operations with MongoDB session support for atomicity
- */
 class TransactionService {
-  /**
-   * Validate if a state transition is allowed
-   * @param {string} fromState - Current state
-   * @param {string} toState - Target state
-   * @returns {boolean} Whether transition is valid
-   */
   validateStateTransition(fromState, toState) {
     const allowedTransitions = STATE_TRANSITIONS[fromState];
     if (!allowedTransitions) {
@@ -38,14 +24,6 @@ class TransactionService {
     return allowedTransitions.includes(toState);
   }
 
-  /**
-   * Execute a callback within a MongoDB transaction session
-   * Provides automatic retry for transient errors and rollback on failure
-   *
-   * @param {Function} callback - Async function receiving (session) parameter
-   * @param {Object} options - Transaction options
-   * @returns {Promise<any>} Result from callback
-   */
   async withTransaction(callback, options = {}) {
     const session = await mongoose.startSession();
 
@@ -76,47 +54,21 @@ class TransactionService {
     }
   }
 
-  /**
-   * Generate a unique idempotency key
-   * @param {string} userId - User ID
-   * @param {string} eventId - Event ID
-   * @param {string} tierId - Tier ID
-   * @returns {string} Idempotency key
-   */
   generateIdempotencyKey(userId, eventId, tierId) {
     const timestamp = Date.now();
     return `txn_${userId}_${eventId}_${tierId}_${timestamp}`;
   }
 
-  /**
-   * Generate a unique payment reference
-   * @param {string} prefix - Reference prefix
-   * @param {string} userId - User ID
-   * @returns {string} Payment reference
-   */
   generateReference(prefix = "order", userId) {
     return `${prefix}_${Date.now()}_${userId}`;
   }
 
-  /**
-   * Calculate exponential backoff delay for retries
-   * @param {number} retryCount - Current retry attempt
-   * @param {number} baseDelay - Base delay in ms (default 1000)
-   * @param {number} maxDelay - Maximum delay in ms (default 30000)
-   * @returns {number} Delay in milliseconds
-   */
   calculateRetryDelay(retryCount, baseDelay = 1000, maxDelay = 30000) {
     const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
-    // Add jitter (±10%) to prevent thundering herd
     const jitter = delay * 0.1 * (Math.random() * 2 - 1);
     return Math.floor(delay + jitter);
   }
 
-  /**
-   * Check if a transaction can be retried
-   * @param {Object} transaction - Transaction document
-   * @returns {Object} { canRetry: boolean, reason?: string }
-   */
   canRetry(transaction) {
     if (transaction.status !== "failed") {
       return {
@@ -135,12 +87,6 @@ class TransactionService {
     return { canRetry: true };
   }
 
-  /**
-   * Check if a transaction can be refunded
-   * @param {Object} transaction - Transaction document
-   * @param {number} amount - Refund amount (optional, defaults to full refund)
-   * @returns {Object} { canRefund: boolean, reason?: string, maxRefundable?: number }
-   */
   canRefund(transaction, amount = null) {
     if (!["completed", "partially_refunded"].includes(transaction.status)) {
       return {
@@ -171,13 +117,6 @@ class TransactionService {
     };
   }
 
-  /**
-   * Update transaction state with validation
-   * @param {Object} transaction - Transaction document
-   * @param {string} newState - Target state
-   * @param {Object} session - MongoDB session (optional)
-   * @returns {Promise<Object>} Updated transaction
-   */
   async updateState(transaction, newState, session = null) {
     if (!this.validateStateTransition(transaction.status, newState)) {
       throw new Error(
@@ -187,7 +126,6 @@ class TransactionService {
 
     transaction.status = newState;
 
-    // Set timestamp based on state
     const now = new Date();
     switch (newState) {
       case "processing":
@@ -208,20 +146,10 @@ class TransactionService {
     return transaction;
   }
 
-  /**
-   * Find existing transaction by idempotency key
-   * @param {string} idempotencyKey - The idempotency key
-   * @returns {Promise<Object|null>} Transaction or null
-   */
   async findByIdempotencyKey(idempotencyKey) {
     return Transaction.findOne({ idempotencyKey }).populate("order");
   }
 
-  /**
-   * Find transaction by payment reference
-   * @param {string} reference - Payment gateway reference
-   * @returns {Promise<Object|null>} Transaction or null
-   */
   async findByReference(reference) {
     return Transaction.findOne({ "gateway.reference": reference })
       .populate("order")
@@ -229,24 +157,6 @@ class TransactionService {
       .populate("event", "title");
   }
 
-  // ============================================
-  // PHASE 2: TRANSACTION OPERATIONS
-  // ============================================
-
-  /**
-   * Initiate a new transaction with order creation
-   * Creates Order and Transaction atomically within a MongoDB session
-   *
-   * @param {Object} data - Transaction data
-   * @param {Object} data.user - User object with _id, email
-   * @param {Object} data.event - Event object with populated organizer
-   * @param {Object} data.tier - Ticket tier object
-   * @param {number} data.quantity - Number of tickets
-   * @param {string} data.idempotencyKey - Client-provided idempotency key
-   * @param {Object} data.paymentResult - Paystack initialization result
-   * @param {Object} data.metadata - Additional metadata (ipAddress, userAgent)
-   * @returns {Promise<Object>} { order, transaction }
-   */
   async initiateTransaction(data) {
     const {
       user,
@@ -263,7 +173,6 @@ class TransactionService {
       event.organizer?.organizerProfile?.paystack?.subaccountCode;
 
     return this.withTransaction(async (session) => {
-      // Create Order
       const [order] = await Order.create(
         [
           {
@@ -283,7 +192,6 @@ class TransactionService {
         { session }
       );
 
-      // Create Transaction
       const transactionKey =
         idempotencyKey ||
         this.generateIdempotencyKey(user._id, event._id, tier._id);
@@ -325,18 +233,8 @@ class TransactionService {
     });
   }
 
-  /**
-   * Complete a transaction after successful payment verification
-   * Updates Order, Transaction, Event stats, and creates Tickets atomically
-   *
-   * @param {string} transactionId - Transaction ID
-   * @param {Object} verificationData - Payment verification data from Paystack
-   * @param {Function} ticketGenerator - Async function to generate tickets (receives order, event, user, session)
-   * @returns {Promise<Object>} { transaction, order, tickets }
-   */
   async completeTransaction(transactionId, verificationData, ticketGenerator) {
     return this.withTransaction(async (session) => {
-      // Find and lock transaction
       const transaction = await Transaction.findById(transactionId).session(
         session
       );
@@ -344,26 +242,22 @@ class TransactionService {
         throw new Error("Transaction not found");
       }
 
-      // Validate state transition
       if (!this.validateStateTransition(transaction.status, "completed")) {
         throw new Error(
           `Cannot complete transaction in ${transaction.status} state`
         );
       }
 
-      // Find order
       const order = await Order.findById(transaction.order).session(session);
       if (!order) {
         throw new Error("Order not found");
       }
 
-      // Update order
       order.paymentStatus = "completed";
       order.paystack.transactionId = verificationData.id;
       order.paystack.channel = verificationData.channel;
       order.paystack.paidAt = verificationData.paid_at;
 
-      // Calculate and store splits
       const paidAmountNaira = verificationData.amount / 100;
       const feesNaira = (verificationData.fees || 0) / 100;
 
@@ -380,7 +274,6 @@ class TransactionService {
           subaccountCode: verificationData.subaccount.subaccount_code,
         };
       } else {
-        // No subaccount - calculate locally
         const paystackService = require("./paystackService");
         splits = paystackService.calculateSplit(order.totalAmount);
         splits.paystackFees = feesNaira;
@@ -392,7 +285,6 @@ class TransactionService {
       };
       await order.save({ session });
 
-      // Update transaction
       transaction.status = "completed";
       transaction.completedAt = new Date();
       transaction.gateway.transactionId = verificationData.id;
@@ -414,7 +306,6 @@ class TransactionService {
       }
       await transaction.save({ session });
 
-      // Update event stats
       const event = await Event.findById(order.event).session(session);
       const tier = event.ticketTiers.id(order.tierId);
       tier.soldCount += order.quantity;
@@ -422,14 +313,12 @@ class TransactionService {
       event.totalRevenue += order.totalAmount;
       await event.save({ session });
 
-      // Generate tickets if generator provided
       let tickets = [];
       if (ticketGenerator) {
         const User = require("../models/User");
         const user = await User.findById(order.user).session(session);
         tickets = await ticketGenerator(order, event, user, session);
 
-        // Update order with ticket references
         order.tickets = tickets.map((t) => t._id);
         await order.save({ session });
       }
@@ -443,16 +332,6 @@ class TransactionService {
     });
   }
 
-  /**
-   * Mark a transaction as failed
-   *
-   * @param {string} transactionId - Transaction ID
-   * @param {Object} failureInfo - Failure details
-   * @param {string} failureInfo.reason - Human-readable failure reason
-   * @param {string} failureInfo.code - Error code (optional)
-   * @param {Object} failureInfo.details - Additional details (optional)
-   * @returns {Promise<Object>} Updated transaction
-   */
   async failTransaction(transactionId, failureInfo = {}) {
     return this.withTransaction(async (session) => {
       const transaction = await Transaction.findById(transactionId).session(
@@ -462,7 +341,6 @@ class TransactionService {
         throw new Error("Transaction not found");
       }
 
-      // Validate state transition
       if (!this.validateStateTransition(transaction.status, "failed")) {
         throw new Error(
           `Cannot fail transaction in ${transaction.status} state`
@@ -477,7 +355,6 @@ class TransactionService {
       transaction.failureDetails = failureInfo.details;
       await transaction.save({ session });
 
-      // Also update associated order
       const order = await Order.findById(transaction.order).session(session);
       if (order) {
         order.paymentStatus = "failed";
@@ -493,14 +370,6 @@ class TransactionService {
     });
   }
 
-  /**
-   * Retry a failed transaction
-   * Validates retry eligibility, updates state, and re-initializes payment
-   *
-   * @param {string} transactionId - Transaction ID
-   * @param {Object} user - User object for audit
-   * @returns {Promise<Object>} { transaction, paymentResult }
-   */
   async retryTransaction(transactionId, user) {
     const transaction = await Transaction.findById(transactionId)
       .populate("order")
@@ -510,21 +379,17 @@ class TransactionService {
       throw new Error("Transaction not found");
     }
 
-    // Validate retry eligibility
     const retryCheck = this.canRetry(transaction);
     if (!retryCheck.canRetry) {
       throw new Error(retryCheck.reason);
     }
 
-    // Calculate delay for exponential backoff
     const delay = this.calculateRetryDelay(transaction.retryCount);
 
-    // Wait for backoff delay
     if (delay > 0 && transaction.retryCount > 0) {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
-    // Update transaction state
     transaction.status = "processing";
     transaction.retryCount += 1;
     transaction.lastRetryAt = new Date();
@@ -534,7 +399,6 @@ class TransactionService {
     );
     await transaction.save();
 
-    // Get required data for payment
     const event = await Event.findById(transaction.event).populate("organizer");
     const User = require("../models/User");
     const transactionUser = await User.findById(transaction.user);
@@ -543,14 +407,12 @@ class TransactionService {
       throw new Error("User not found");
     }
 
-    // Generate new reference
     const newReference = `retry_${transaction.retryCount}_${Date.now()}_${
       transaction.user
     }`;
     const subaccountCode =
       event?.organizer?.organizerProfile?.paystack?.subaccountCode;
 
-    // Re-initialize payment
     const paystackService = require("./paystackService");
     const paymentResult = await paystackService.initializePayment({
       email: transactionUser.email,
@@ -566,14 +428,12 @@ class TransactionService {
     });
 
     if (!paymentResult.status) {
-      // Revert to failed state
       transaction.status = "failed";
       transaction.failureReason = "Failed to re-initialize payment";
       await transaction.save();
       throw new Error("Failed to re-initialize payment with Paystack");
     }
 
-    // Update reference
     transaction.gateway.reference = paymentResult.data.reference;
     await transaction.save();
 
@@ -585,21 +445,6 @@ class TransactionService {
     return { transaction, paymentResult };
   }
 
-  // ============================================
-  // PHASE 3: REFUND & ADVANCED OPERATIONS
-  // ============================================
-
-  /**
-   * Process a refund for a transaction
-   * Supports both full and partial refunds
-   *
-   * @param {string} transactionId - Transaction ID
-   * @param {Object} refundData - Refund details
-   * @param {number} refundData.amount - Refund amount (optional, defaults to full refund)
-   * @param {string} refundData.reason - Reason for refund
-   * @param {string} refundData.processedBy - User ID processing the refund
-   * @returns {Promise<Object>} Updated transaction
-   */
   async refundTransaction(transactionId, refundData = {}) {
     const { amount, reason, processedBy } = refundData;
 
@@ -612,16 +457,13 @@ class TransactionService {
         throw new Error("Transaction not found");
       }
 
-      // Validate refund eligibility
       const refundCheck = this.canRefund(transaction, amount);
       if (!refundCheck.canRefund) {
         throw new Error(refundCheck.reason);
       }
 
-      // Determine refund amount (full or partial)
       const refundAmount = amount || refundCheck.maxRefundable;
 
-      // Add refund record
       transaction.refunds.push({
         amount: refundAmount,
         reason: reason || "Refund requested",
@@ -629,14 +471,11 @@ class TransactionService {
         processedAt: new Date(),
       });
 
-      // Update totals
       transaction.totalRefunded += refundAmount;
 
-      // Determine new status
       const isFullRefund = transaction.totalRefunded >= transaction.amount;
       const newStatus = isFullRefund ? "refunded" : "partially_refunded";
 
-      // Validate state transition
       if (!this.validateStateTransition(transaction.status, newStatus)) {
         throw new Error(
           `Cannot transition from ${transaction.status} to ${newStatus}`
@@ -646,7 +485,6 @@ class TransactionService {
       transaction.status = newStatus;
       await transaction.save({ session });
 
-      // Update associated order if needed
       if (isFullRefund) {
         const order = await Order.findById(transaction.order).session(session);
         if (order) {
@@ -665,11 +503,6 @@ class TransactionService {
     });
   }
 
-  /**
-   * Get transaction by ID with full population
-   * @param {string} transactionId - Transaction ID
-   * @returns {Promise<Object|null>} Transaction with populated relations
-   */
   async getTransactionById(transactionId) {
     return Transaction.findById(transactionId)
       .populate("user", "fullName email phone")
@@ -678,16 +511,6 @@ class TransactionService {
       .populate("refunds.processedBy", "fullName");
   }
 
-  /**
-   * Get transactions with filtering and pagination
-   * @param {Object} options - Query options
-   * @param {Object} options.filter - Filter criteria
-   * @param {number} options.page - Page number (1-indexed)
-   * @param {number} options.limit - Items per page
-   * @param {string} options.sortBy - Field to sort by
-   * @param {string} options.sortOrder - 'asc' or 'desc'
-   * @returns {Promise<Object>} { transactions, pagination }
-   */
   async getTransactions(options = {}) {
     const {
       filter = {},
@@ -724,12 +547,6 @@ class TransactionService {
     };
   }
 
-  /**
-   * Get transactions for a specific user
-   * @param {string} userId - User ID
-   * @param {Object} options - Pagination options
-   * @returns {Promise<Object>} { transactions, pagination }
-   */
   async getTransactionsByUser(userId, options = {}) {
     return this.getTransactions({
       ...options,
@@ -737,12 +554,6 @@ class TransactionService {
     });
   }
 
-  /**
-   * Get transactions for a specific event
-   * @param {string} eventId - Event ID
-   * @param {Object} options - Pagination options
-   * @returns {Promise<Object>} { transactions, pagination }
-   */
   async getTransactionsByEvent(eventId, options = {}) {
     return this.getTransactions({
       ...options,
@@ -750,14 +561,6 @@ class TransactionService {
     });
   }
 
-  /**
-   * Get transaction statistics
-   * @param {Object} options - Filter options
-   * @param {Date} options.startDate - Start date filter
-   * @param {Date} options.endDate - End date filter
-   * @param {string} options.eventId - Event ID filter (optional)
-   * @returns {Promise<Object>} Statistics object
-   */
   async getTransactionStats(options = {}) {
     const { startDate, endDate, eventId } = options;
 
@@ -807,7 +610,6 @@ class TransactionService {
       },
     ]);
 
-    // Status distribution
     const statusDistribution = await Transaction.aggregate([
       { $match: matchStage },
       {
@@ -838,5 +640,4 @@ class TransactionService {
   }
 }
 
-// Export singleton instance
 module.exports = new TransactionService();

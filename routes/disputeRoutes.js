@@ -4,11 +4,6 @@ const disputeController = require("../controllers/disputeController");
 const { auth } = require("../middleware/auth");
 const { roleAuth } = require("../middleware/roleAuth");
 
-/**
- * Dispute Routes
- * Users can create disputes, admins can manage them
- */
-
 router.use(auth);
 router.get("/stats", roleAuth(["admin"]), disputeController.getDisputeStats);
 router.post("/", disputeController.createDispute);

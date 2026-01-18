@@ -22,11 +22,9 @@ const {
   validateObjectId,
 } = require("../middleware/validation");
 
-// Public routes
 router.get("/", getEvents);
 router.get("/:id", validateObjectId("id"), getEvent);
 
-// Organizer routes
 router.get(
   "/organizer/my-events",
   auth,

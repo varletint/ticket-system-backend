@@ -15,7 +15,7 @@ class PaystackService {
         business_name: bankDetails.businessName,
         settlement_bank: bankDetails.bankCode,
         account_number: bankDetails.accountNumber,
-        percentage_charge: bankDetails.platformFee || 10, // Platform takes 10%, organizer gets 90%
+        percentage_charge: bankDetails.platformFee || 10,
         description: `Organizer: ${organizer.fullName}`,
       }),
     });
@@ -38,7 +38,7 @@ class PaystackService {
       },
       body: JSON.stringify({
         email,
-        amount: amount * 100, // Paystack uses kobo
+        amount: amount * 100,
         reference,
         subaccount: subaccountCode,
         metadata,
