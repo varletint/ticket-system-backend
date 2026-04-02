@@ -17,7 +17,7 @@ jobs:
 
       - name: Generate random alphanumeric code
         run: |
-          RANDOM_CODE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+          RANDOM_CODE=$(openssl rand -base64 15 | tr -dc 'a-zA-Z0-9' | head -c 16)
           echo "Generated code: $RANDOM_CODE"
 
           # Write it to a file
