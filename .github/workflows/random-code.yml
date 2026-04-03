@@ -26,7 +26,7 @@ jobs:
 
       - name: Commit and Push changes
         run: |
-          git config --local user.email "varletint@hotmail.com"
+          git config --local user.email "intvarlet@hotmail.com"
           git config --local user.name "varletint"
           git add random-code.txt random-code-log.txt
 
